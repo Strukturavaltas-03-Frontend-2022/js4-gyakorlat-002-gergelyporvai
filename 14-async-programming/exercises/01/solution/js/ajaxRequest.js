@@ -1,4 +1,25 @@
-import { state, actions } from './store/ajaxRequest.js';
+/* 1. Feladat
+- Adott 3 json fájl:  `users1`, `users2`, és `users3` névvel
+- Mindegyik fájl felhasználók nevét, és életkorát tartalmazza
+- Írd meg a `request`, `handleError`, `handleLoad` függvények törzsét az `ajaxRequest.js` fájlban!
+
+- A `request` egy xmlHttp kérést indít az adott erőforrás elérésére az adott metódussal.
+- Az `onload` eseményre a `handleLoad` függvény fusson le.
+
+- Ha az adott erőforrás nem elérhető, próbálja meg még `retryCount` alkalommal elérni azt.
+- Két hívás között legyen `delay` ezredmásodperc várakozási idő.
+- Ha az erőforrás elérhető volt, akkor a `successCallback` függvényt kell meghívni,
+ ez paraméterként a `responseText`-et kapja meg.
+- Ha `retryCount` alkalommal sem lehet  elérni az erőforrást,
+meg kell hívni a `handleError` függvényt, a paraméter ilyenkor: `Resource not avaiable: ${url}`
+- Az `onerror` eseménynél a `handleError` függvényt kell meghívni,
+paraméterként az `Error` objektum `message` propertyjét átadva.
+- Csak a 3 függvényt törzsét írd meg!
+- Használd fel a már megírt két `store` fájlt a megoldáshoz!
+- Új függvényeket nem kell létrehoznod!
+- A `main` fájl már készen van! */
+
+import { state, actions } from "./store/ajaxRequest.js";
 
 /**
  * Represents a request factory
@@ -13,9 +34,10 @@ import { state, actions } from './store/ajaxRequest.js';
 function ajaxRequest({
   url,
   successCallback,
-  method = 'GET',
+  method = "GET",
   delay = 5000,
   maxRetry = 2,
+  retryCount = 3,
 } = {}) {
   actions.initRequest(maxRetry, delay);
 
@@ -24,7 +46,7 @@ function ajaxRequest({
    * @param {string} message - the error message
    */
   function handleError(message) {
-
+    console.log("Error: ", message);
   }
 
   /**
@@ -32,14 +54,33 @@ function ajaxRequest({
    * @param {Object} xhr - the error message
    */
   function handleLoad(xhr) {
-
+    console.log("Loaded: ", xhr);
+    successCallback(xhr.response);
   }
 
   /**
    * Send ajax request
    */
   function request() {
-
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url);
+    xhr.onload = (ev) => handleLoad(ev.target);
+    xhr.onerror = (ev) => {
+      if (ev.target.status === 404) {
+        retryCount -= 1;
+        if (retryCount === 0) {
+          handleError(`Resource not avaiable: ${url}`);
+        } else {
+          const to = setTimeout(() => {
+            clearTimeout(to);
+            request();
+          }, delay);
+        }
+      } else {
+        handleError(ev.message);
+      }
+    };
+    xhr.send();
   }
 
   return request;
